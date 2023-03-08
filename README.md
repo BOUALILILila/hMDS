@@ -11,10 +11,12 @@ Let us consider the following example: "Mary married john who works at the baker
 The constituency tree (hierarchical structure) of this sentence is shown bellow
 
 <p align="center">
-  <img src="assets/constituency_tree.png" alt="Constituency tree of the sentence 'Mary Married john who works at the bakery'" width="400"/>
+  <img src="assets/constituency_tree.png" alt="Constituency tree of the sentence 'Mary Married john who works at the bakery'" width="600"/>
 </p>
 
-The following code snippet recovers the hyperbolic embeddings $X_rec$ of each word given the pairwise distance between all words in the sentence $A$, which represents the shortest paths in the constituency tree.
+The following code snippet recovers the hyperbolic embeddings in matrix form $X_{rec} \in R^{n \times r}$ of the sentence words given their pairwise distances in distance matrix $A \in R^{n \times n}$, which represents the shortest paths in the constituency tree.
+
+Note that the dimension of the recovered embeddings $r: r < n$. You can lower the upper bound of the embedding dimension using the parameter ```0 < k <= n``` of the function ```hmds```.
 
 ```python
 import numpy as np
@@ -36,7 +38,7 @@ A = np.array([
 scale = 1
 Xrec = hmds(A, k=8, scale=scale)
 
-print(f">> Embeddings in the Poincaré Ball of dimension = {Xrec.shape[1]}")
+print(f">> Embeddings in the Poincaré Ball of dimension r = {Xrec.shape[1]}")
 
 # Compute the reconstructed distance matrix
 n = A.shape[0]
