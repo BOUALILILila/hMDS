@@ -6,26 +6,26 @@ import time
 import numpy as np
 from numpy import linalg as LA
 
-def power_method(
+def power_method_symmetric(
     A: np.ndarray, 
     d: int, 
     tol: float=1e-8, 
     verbose: bool=False, 
     max_iter: int=1000
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Power Method for determining the largest Eigenvalues and Eigenvectors.
+    """Power Method for determining the d largest Eigenvalues and Eigenvectors of a symmetric matrix A.
     
     The power method is an iterative algorithm to determine the d most significant
     eigenvalues of a square matrix A. For each eigenvalue, the algorithm works 
     by starting with a random initial eigenvector, and then iteratively applying
     the matrix A to the eigenvector and normalizing the result to obtain a sequence
     of improved approximations for the eigenvector. Use the gram-schmidt process
-    to insure that each new eigenvector is orthogonal to the previous ones. 
+    to ensure that each new eigenvector is orthogonal to the previous ones (A is symmetric). 
     
     Parameters
     ----------
     A : np.ndarray
-        The square matrix.
+        A symmetric matrix.
     d : int 
         Number of largest eigenvalues to determine.
     tol :  float, default=1e-8
@@ -44,10 +44,10 @@ def power_method(
     Raises
     ------
     AssertionError
-        if the input tensor A is not a square matrix.
+        if the input tensor A is not a symmetric matrix.
         if the number of eigenvalues d is greater than the matrix size.
     """
-    assert len(A.shape) == 2 and A.shape[0] == A.shape[1], f'A={A} is not a square matrix, cannot perform power method'
+    assert len(A.shape) == 2 and np.allclose(A, A.T, rtol=1e-5, atol=1e-8), f'A={A} is not a symmetric matrix, cannot perform power_method_symmetric'
     (n,n) = A.shape
 
     assert d <= n, f"The number of eigenvalues {d} is greater than the matrix size {n}"

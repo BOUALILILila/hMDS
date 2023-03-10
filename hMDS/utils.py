@@ -61,3 +61,9 @@ def wc_distortion(Dnew,Dold):
 
 def set_seed(seed):
     np.random.seed(seed)
+
+def quadratic_form(x):
+    """ Minkowski qudratic form of a point in Gans Model (x0 is not in x).
+    """
+    x0 = np.sqrt(1 + np.linalg.norm(x)**2)
+    return x0**2 - np.dot(x,x)

@@ -48,55 +48,58 @@ def get_eig_vals_and_vecs(
     A: np.ndarray, 
     verbose: bool=False, 
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """ Determine the Eigenvalues and corresponding Eigenvectors (eigendecomposition).
+    """ Determine the Eigenvalues and corresponding Eigenvectors (eigendecomposition) of A.
+        A is symmetric:
+            eigenvectors(A.T @ A) == eigenvectors(A)
     
     Parameters
     ----------
     A : np.ndarray
-        The square matrix.
+        Symmetric matrix.
     verbose : bool, default=False
         Print logs.
         
     Returns
     -------
     Tuple[np.ndarray, np.ndarray]
-        The approximations for the (eigenvalues, and eigenvectors) of A
-        
+        The approximations for the (eigenvalues, and eigenvectors) of A.
+
     Raises
     ------
-    LinAlgError
-        if the input tensor A is not a square array.
+    AssertionError
+        if the input tensor A is not a symmetric matrix.
     """
-    assert len(A.shape) == 2 and A.shape[0] == A.shape[1], f'A={A} is not a square matrix, cannot perform power method'
-    (n,n) = A.shape
+    assert len(A.shape) == 2 and np.allclose(A, A.T, rtol=1e-5, atol=1e-8), f'A = {A} is not a symmetric matrix'
+
     # Slow power_method implemented in eigendecomposition.py 
-    # _d, _U = power_method(torch.matmul(A.T,A), r, tol, verbose=verbose, max_iter=max_iter)
+    # lambdas, U = power_method_symmetric(torch.matmul(A.T,A), r, tol, verbose=verbose, max_iter=max_iter)
 
     # Faster linalg implementation which computes the eigenvalues and right eigenvectors of a square array
-    _d, _U = LA.eig(np.matmul(A.T, A))
-    _d = _d.astype(np.float32)
-    _U = _U.astype(np.float32)
-    # Sort from largest to smallest eigenvalue (abs)
-    ind = np.argsort(np.abs(_d))[::-1]
-    _d = _d[ind]
-    _U = _U[:,ind]
+    lambdas, U = LA.eig(np.matmul(A.T, A))
+    lambdas = lambdas.astype(np.float32)
+    U = U.astype(np.float32)
 
-    X = np.matmul(np.matmul(_U.T, A), _U) # _U.T @ A @ _U
-    _d_signed = np.diag(X, k=0) # the eigenvalues
+    # Sort eigenvectors from largest to smallest corresponding eigenvalue
+    U = U[:, np.abs(lambdas).argsort()[::-1]]
+
+    # A = U @ LAMBDA @ U.T where LAMBDA is the diagonal matrix with eigenvalues
+    # Find LAMBDA = U.T @ A @ U
+    LAMBDA = np.matmul(np.matmul(U.T, A), U) # U.T @ A @ U
+    lambdas_signed = np.diag(LAMBDA, k=0) # the signed eigenvalues of A (diagonal elements of LAMBDA)
 
     if verbose:
-        print(f"Log Off Diagonals: {float(np.log(np.norm( X - np.diag(_d_signed))))}")
+        print(f"Log Off Diagonals: {float(np.log(np.norm( LAMBDA - np.diag(lambdas_signed))))}")
 
-    return _d_signed, _U
+    return lambdas_signed, U
 
 def PCA(Z: np.ndarray, k: int, verbose=False) -> Tuple[np.ndarray, int] :
-    """ Run Principal Component Analysis on Z to find the k most significant 
+    """ Run Principal Component Analysis on A to find the k most significant 
     non-negative eigenvalues to recover X.
     
     Parameters
     ----------
     A : np.ndarray
-        The square matrix.
+        Symmetric matrix.
     k : int
         The number of non-negative eigenvalues
     verbose : bool, default=False
@@ -107,19 +110,19 @@ def PCA(Z: np.ndarray, k: int, verbose=False) -> Tuple[np.ndarray, int] :
     Tuple[np.ndarray, int]
         The recovered X matrix and the dimension of the submanifold
     
-     Raises
+    Raises
     ------
     AssertionError
         if the number of eigenvalues k is less than 0.
     """
-    assert k > 0, f"Rank k must be greater than 0, but k={k} was given."
+    assert k > 0, f"Rank k must be greater than 0, but k = {k} was given."
 
     start = time.time() if verbose else None
     lambdasM, usM = get_eig_vals_and_vecs(Z, verbose=verbose) 
     lambdasM_pos = np.copy(lambdasM)
     usM_pos = np.copy(usM)
 
-    # Among the n eigen values ordered by significance take the non-negative ones up to k
+    # Among the n eigenvalues ordered by significance take the non-negative ones up to k
     n = Z.shape[0]
     idx = 0
     for i in range(n):
@@ -130,6 +133,11 @@ def PCA(Z: np.ndarray, k: int, verbose=False) -> Tuple[np.ndarray, int] :
             usM_pos[:,idx] = usM[:,i]
             idx += 1
 
+    # A = U @ LAMBDA @ U.T => A = X @ X.T => X = U @ sqrt(LAMBDA)
+    # Xrec is an approximation of X 
+    # Xrec does not consider the larget eigenvalue (the only negative eigenvalue)
+    # and its corresponding eigenvector
+    # Xrec takes the remaining eigenvalues-eigenvectors up to k for Xrec
     Xrec = np.matmul(usM_pos[:,0:idx], np.diag(np.sqrt(lambdasM_pos[0:idx])))
     
     if verbose:
